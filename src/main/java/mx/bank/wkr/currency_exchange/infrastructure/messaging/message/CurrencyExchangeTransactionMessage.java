@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.*;
 import java.math.BigDecimal;
 import java.util.Date;
 
-public record TransactionMessage(
+public record CurrencyExchangeTransactionMessage(
         @JsonProperty("id")
         String id,
 
