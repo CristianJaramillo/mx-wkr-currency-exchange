@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import mx.bank.wkr.currency_exchange.domain.mapper.CurrencyExchangeTransactionMessageMapper;
 import mx.bank.wkr.currency_exchange.domain.mapper.CurrencyExchangeTransactionModelMapper;
 import mx.bank.wkr.currency_exchange.domain.model.CurrencyExchangeTransactionModel;
+import mx.bank.wkr.currency_exchange.infrastructure.messaging.config.RabbitMqProperties;
 import mx.bank.wkr.currency_exchange.infrastructure.messaging.message.CurrencyExchangeTransactionMessage;
 import mx.bank.wkr.currency_exchange.infrastructure.persistence.entity.CurrencyExchangeTransactionEntity;
 import mx.bank.wkr.currency_exchange.infrastructure.persistence.repository.CurrencyExchangeRepository;
@@ -23,7 +24,7 @@ public class CurrencyExchangeTransactionConsumer {
     }
 
 
-    @RabbitListener(queues = "currency.exchange.transaction")
+    @RabbitListener(queues = "${spring.rabbitmq.queue}")
     public void handle(@Payload CurrencyExchangeTransactionMessage currencyExchangeTransactionMessage) {
         log.info("🔁 Evento recibido: {}", currencyExchangeTransactionMessage);
 
