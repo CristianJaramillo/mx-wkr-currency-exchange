@@ -8,7 +8,7 @@
 		<version>3.3.10</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>mx.bank</groupId>
+	<groupId>mx-bank</groupId>
 	<artifactId>wkr-currency-exchange</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>Wrk Currency Exchange</name>
@@ -79,6 +79,7 @@
 	</dependencies>
 
 	<build>
+		<finalName>${groupId}-${artifactId}-${version}</finalName>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
