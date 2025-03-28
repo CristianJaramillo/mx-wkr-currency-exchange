@@ -32,13 +32,21 @@ public class CurrencyExchangeTransactionConsumer {
         CurrencyExchangeTransactionEntity currencyExchangeTransactionEntity = CurrencyExchangeTransactionModelMapper.INSTANCE.toEntity(currencyExchangeTransactionModel);
 
         try {
+
+            if(currencyExchangeTransactionEntity.getId() != null) {
+                if(currencyExchangeRepository.findById(currencyExchangeTransactionEntity.getId()).isPresent()) {
+                    log.info("✅ Transacción previamente registrada: {}", currencyExchangeTransactionEntity.getId());
+                    return;
+                }
+            }
+
             currencyExchangeRepository.save(currencyExchangeTransactionEntity);
             log.info("✅ Persistido después de caída: {}", currencyExchangeTransactionEntity.getId());
+
         } catch (Exception e) {
             log.warn("🚨 Aún no se puede persistir. Reintentando...");
             throw e; // Para activar el retry
         }
 
-        // Aquí va la lógica de procesamiento
     }
 }
