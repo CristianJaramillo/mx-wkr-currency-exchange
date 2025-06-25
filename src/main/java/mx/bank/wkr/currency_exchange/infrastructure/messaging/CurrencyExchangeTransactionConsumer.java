@@ -23,7 +23,6 @@ public class CurrencyExchangeTransactionConsumer {
         this.currencyExchangeRepository = currencyExchangeRepository;
     }
 
-
     @RabbitListener(queues = "${spring.rabbitmq.queue}")
     public void handle(@Payload CurrencyExchangeTransactionMessage currencyExchangeTransactionMessage) {
         log.info("🔁 Evento recibido: {}", currencyExchangeTransactionMessage);
@@ -41,8 +40,8 @@ public class CurrencyExchangeTransactionConsumer {
                 }
             }
 
-            currencyExchangeRepository.save(currencyExchangeTransactionEntity);
-            log.info("✅ Persistido después de caída: {}", currencyExchangeTransactionEntity.getId());
+            CurrencyExchangeTransactionEntity currencyExchangeTransactionEntityStore = currencyExchangeRepository.save(currencyExchangeTransactionEntity);
+            log.info("✅ Persistido después de caída: {}", currencyExchangeTransactionEntityStore.getId());
 
         } catch (Exception e) {
             log.warn("🚨 Aún no se puede persistir. Reintentando...");
