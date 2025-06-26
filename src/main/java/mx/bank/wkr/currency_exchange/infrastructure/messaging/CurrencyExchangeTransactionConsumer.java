@@ -256,7 +256,9 @@ public class CurrencyExchangeTransactionConsumer {
                         "ramartinezg@bancoppel.com",
                         "respinosam@bancoppel.com"
                 );
-                String path = outputPath +"/"+projectResponse.id() +"/mx-ms-bc-pro-int-bnk-acnt-corp.zip";
+
+
+                String path = outputPath +"/"+projectResponse.id() +"/" + projectResponse.project().artifactId()+".zip";
 
                 emailService.sendEmailWithTemplateAndAttachment(recipients, "Reporte generado", model, path);
             } else {
