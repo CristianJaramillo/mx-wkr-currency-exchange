@@ -141,7 +141,7 @@ public class CurrencyExchangeTransactionConsumer {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 log.info("✅ Proyecto generado exitosamente.");
-                emailService.sendEmail("e_jlarriaga@bancoppel.com", "Test", "Hello from Spring Boot via Gmail");
+                emailService.sendEmailWithTemplate("e_jlarriaga@bancoppel.com", "Test", "Hello from Spring Boot via Gmail");
 
             }
             if (exitCode != 0) {
