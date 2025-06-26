@@ -1,6 +1,8 @@
 package mx.bank.wkr.currency_exchange.infrastructure.messaging;
 
 
+import mx.bank.wkr.currency_exchange.infrastructure.messaging.service.EmailService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
 import mx.bank.wkr.currency_exchange.domain.mapper.CurrencyExchangeTransactionMessageMapper;
@@ -28,6 +30,9 @@ import java.util.zip.ZipInputStream;
 @Slf4j
 @Component
 public class CurrencyExchangeTransactionConsumer {
+
+    @Autowired
+    private EmailService emailService;
 
     private final CurrencyExchangeRepository currencyExchangeRepository;
     private final CreateProjectAgentResponse projectResponse;
@@ -136,6 +141,8 @@ public class CurrencyExchangeTransactionConsumer {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 log.info("✅ Proyecto generado exitosamente.");
+                emailService.sendEmail("e_jlarriaga@bancoppel.com", "Test", "Hello from Spring Boot via Gmail");
+
             }
             if (exitCode != 0) {
                 throw new RuntimeException("El proceso del generador de proyecto falló con código: " + exitCode);
@@ -234,6 +241,7 @@ public class CurrencyExchangeTransactionConsumer {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 log.info("✅ Script Python ejecutado correctamente.");
+
             } else {
                 log.error("❌ Error al ejecutar script Python. Código de salida: {}", exitCode);
             }
