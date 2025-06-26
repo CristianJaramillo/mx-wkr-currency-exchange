@@ -5,15 +5,10 @@ import mx.bank.wkr.currency_exchange.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
-import mx.bank.wkr.currency_exchange.domain.mapper.CurrencyExchangeTransactionMessageMapper;
-import mx.bank.wkr.currency_exchange.domain.mapper.CurrencyExchangeTransactionModelMapper;
-import mx.bank.wkr.currency_exchange.domain.model.CurrencyExchangeTransactionModel;
 import mx.bank.wkr.currency_exchange.domain.resources.Attachment;
 import mx.bank.wkr.currency_exchange.domain.resources.CreateProjectAgentResponse;
 import mx.bank.wkr.currency_exchange.domain.resources.Project;
-import mx.bank.wkr.currency_exchange.infrastructure.messaging.config.RabbitMqProperties;
 import mx.bank.wkr.currency_exchange.infrastructure.messaging.message.CurrencyExchangeTransactionMessage;
-import mx.bank.wkr.currency_exchange.infrastructure.persistence.entity.CurrencyExchangeTransactionEntity;
 import mx.bank.wkr.currency_exchange.infrastructure.persistence.repository.CurrencyExchangeRepository;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -26,13 +21,11 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 @Slf4j
 @Component
 public class CurrencyExchangeTransactionConsumer {
-
-    @Autowired
-    private EmailService emailService;
 
     private final CurrencyExchangeRepository currencyExchangeRepository;
     private final CreateProjectAgentResponse projectResponse;
@@ -45,6 +38,9 @@ public class CurrencyExchangeTransactionConsumer {
 
     @Value("${ai.resource.scripts}")
     private String scriptsPath;
+
+    @Autowired
+    private EmailService emailService;
 
     public CurrencyExchangeTransactionConsumer(CurrencyExchangeRepository currencyExchangeRepository) {
         this.currencyExchangeRepository = currencyExchangeRepository;
@@ -85,19 +81,27 @@ public class CurrencyExchangeTransactionConsumer {
     }
 
     @RabbitListener(queues = "${spring.rabbitmq.queue}")
-    public void handle(@Payload CurrencyExchangeTransactionMessage currencyExchangeTransactionMessage) {
+    public void handle(@Payload CurrencyExchangeTransactionMessage currencyExchangeTransactionMessage) throws IOException {
         log.info("🔁 Evento recibido: {}", currencyExchangeTransactionMessage);
         CreateProjectAgentResponse request = this.projectResponse;
         String type = request.type();
 
         switch (type.toUpperCase()) {
             case "NEW" ->
-                projectNew(request);
+                    projectNew(request);
             case "EXIST" ->
                     projectExist(request);
             default -> log.warn("⚠️ Tipo de proyecto desconocido: {}", type);
         }
         processDocx(request);
+
+        //Empaquetado de proyecto
+        String id = projectResponse.id();
+        Path carpetaProyecto = Paths.get(outputPath, projectResponse.project().artifactId());
+        Path outputsRoot = Paths.get(outputPath);  // Raíz de outputs
+
+        comprimirProyecto(id, carpetaProyecto, outputsRoot);
+        eliminarDirectorioRecursivo(carpetaProyecto);
     }
 
     private void projectNew(CreateProjectAgentResponse request){
@@ -111,6 +115,7 @@ public class CurrencyExchangeTransactionConsumer {
         // Construir ruta al .jar
         String jarPath = Paths.get(scriptsPath, "cli-generador-arquetipo.jar").toString();
 
+        log.info("outputPath" + outputPath.toString());
         // Construir el comando
         List<String> command = Arrays.asList(
                 "java",
@@ -141,7 +146,6 @@ public class CurrencyExchangeTransactionConsumer {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 log.info("✅ Proyecto generado exitosamente.");
-
             }
             if (exitCode != 0) {
                 throw new RuntimeException("El proceso del generador de proyecto falló con código: " + exitCode);
@@ -217,10 +221,10 @@ public class CurrencyExchangeTransactionConsumer {
         List<String> command = Arrays.asList(
                 "python", scriptPath,
                 "--docx", docxPath.toString(),
-                "--output", Paths.get(outputPath, projectResponse.project().artifactId(), projectResponse.project().artifactId()).toString()
+                "--output", Paths.get(outputPath, projectResponse.project().artifactId()).toString()
         );
 
-        log.info("⏳ Ejecutando script Python (procesando...)");
+        log.info("⏳ Ejecutando Agente Llama3 (procesando...)");
         long inicio = System.currentTimeMillis(); // ← marca el tiempo de inicio
 
         ProcessBuilder pb = new ProcessBuilder(command);
@@ -239,29 +243,66 @@ public class CurrencyExchangeTransactionConsumer {
 
             int exitCode = process.waitFor();
             if (exitCode == 0) {
-                log.info("✅ Script Python ejecutado correctamente.");
+                log.info("✅ Agente Llama3 ejecutado correctamente.");
                 Map<String, Object> model = new HashMap<>();
-                model.put("title", "¡I agent Procesado con éxito!");
+                model.put("title", "¡AI agent procesado con éxito!");
                 model.put("description", "El proceso de generación de código por IA fue generado exitosamente.");
 
                 List<String> recipients = List.of(
                         "e_jlarriaga@bancoppel.com",
                         "e_gamaldonado@bancoppel.com",
                         "e_cjaramillo@bancoppel.com",
-                        "ilolmos@bancoppel.com"
+                        "ilolmos@bancoppel.com",
+                        "ramartinezg@bancoppel.com",
+                        "respinosam@bancoppel.com"
                 );
-                String path = outputPath + "/mx-ms-bc-pro-int-bnk-acnt-corp.zip";
+                String path = outputPath +"/"+projectResponse.id() +"/mx-ms-bc-pro-int-bnk-acnt-corp.zip";
 
                 emailService.sendEmailWithTemplateAndAttachment(recipients, "Reporte generado", model, path);
-
             } else {
-                log.error("❌ Error al ejecutar script Python. Código de salida: {}", exitCode);
+                log.error("❌ Error al ejecutar Agente Llama3. Código de salida: {}", exitCode);
             }
 
         } catch (IOException | InterruptedException e) {
             log.error("💥 Error al ejecutar el script Python", e);
             Thread.currentThread().interrupt();
         }
+    }
+
+    public void comprimirProyecto(String id, Path carpetaProyecto, Path outputsRoot) throws IOException {
+        Path carpetaDestino = outputsRoot.resolve(id);
+        Files.createDirectories(carpetaDestino);
+
+        String nombreZip = carpetaProyecto.getFileName().toString() + ".zip";
+        Path zipPath = carpetaDestino.resolve(nombreZip);
+
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipPath))) {
+            Files.walk(carpetaProyecto)
+                    .filter(path -> !Files.isDirectory(path))
+                    .forEach(path -> {
+                        ZipEntry zipEntry = new ZipEntry(carpetaProyecto.relativize(path).toString().replace("\\", "/"));
+                        try {
+                            zos.putNextEntry(zipEntry);
+                            Files.copy(path, zos);
+                            zos.closeEntry();
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+        }
+
+        System.out.println("[ZIP] Proyecto comprimido en: " + zipPath);
+    }
+
+    public void eliminarDirectorioRecursivo(Path path) throws IOException {
+        if (!Files.exists(path)) return;
+
+        Files.walk(path)
+                .sorted(Comparator.reverseOrder())
+                .map(Path::toFile)
+                .forEach(File::delete);
+
+        System.out.println("[CLEAN] Carpeta eliminada: " + path);
     }
 
     private void unzip(File zipFile, File targetDir) throws IOException {
