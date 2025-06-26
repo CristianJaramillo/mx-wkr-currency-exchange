@@ -244,23 +244,6 @@ public class CurrencyExchangeTransactionConsumer {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 log.info("✅ Agente Llama3 ejecutado correctamente.");
-                Map<String, Object> model = new HashMap<>();
-                model.put("title", "¡AI agent procesado con éxito!");
-                model.put("description", "El proceso de generación de código por IA fue generado exitosamente.");
-
-                List<String> recipients = List.of(
-                        "e_jlarriaga@bancoppel.com",
-                        "e_gamaldonado@bancoppel.com",
-                        "e_cjaramillo@bancoppel.com",
-                        "ilolmos@bancoppel.com",
-                        "ramartinezg@bancoppel.com",
-                        "respinosam@bancoppel.com"
-                );
-
-
-                String path = outputPath +"/"+projectResponse.id() +"/" + projectResponse.project().artifactId()+".zip";
-
-                emailService.sendEmailWithTemplateAndAttachment(recipients, "Reporte generado", model, path);
             } else {
                 log.error("❌ Error al ejecutar Agente Llama3. Código de salida: {}", exitCode);
             }
@@ -294,6 +277,23 @@ public class CurrencyExchangeTransactionConsumer {
         }
 
         System.out.println("[ZIP] Proyecto comprimido en: " + zipPath);
+        Map<String, Object> model = new HashMap<>();
+        model.put("title", "¡AI agent procesado con éxito!");
+        model.put("description", "El proceso de generación de código por IA fue generado exitosamente.");
+
+        List<String> recipients = List.of(
+                "e_jlarriaga@bancoppel.com",
+                "e_gamaldonado@bancoppel.com",
+                "e_cjaramillo@bancoppel.com",
+                "ilolmos@bancoppel.com",
+                "ramartinezg@bancoppel.com",
+                "respinosam@bancoppel.com"
+        );
+
+
+        String path = outputPath +"/"+projectResponse.id() +"/" + projectResponse.project().artifactId()+".zip";
+
+        emailService.sendEmailWithTemplateAndAttachment(recipients, "Reporte generado", model, path);
     }
 
     public void eliminarDirectorioRecursivo(Path path) throws IOException {
